@@ -29,6 +29,10 @@ contract CourseCommerceManager{
     Product[] public products;
     Sale[] public sales;
 
+    // Creazione Eventi per tracciare nuovi prodotti e nuove vendite
+    event NewSaleAdded (uint256 saleId, address buyerAddress, uint256 saleDate, uint256 saleProductId, uint256 totalSales);
+    event NewProductAdded (uint256 productId, string productName, uint256 productPrice);
+
     // Costruttore che inizializza lo stato del contratto
     constructor()
     {
@@ -55,6 +59,7 @@ contract CourseCommerceManager{
         });
 
         products.push(newProduct);
+        emit NewProductAdded(currentProductID, _productName, _productPrice);
     }
 
     // Funzione per comprare un prodotto
@@ -81,6 +86,7 @@ contract CourseCommerceManager{
         if (change > 0){
             payable(msg.sender).transfer(change);
         }
+        emit NewSaleAdded(currentSaleId, msg.sender, block.timestamp, _productId, totalSales);
     }
 
     // Funzione per il prelievo dei fondi da parte dell'owner
