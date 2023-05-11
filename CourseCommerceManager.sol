@@ -19,8 +19,9 @@ contract CourseCommerceManager{
     struct Sale{
         uint256 saleId;
         address buyerAddress;
+        address payable sellerAddress;
         uint256 saleDate;
-        //Product saleProduct;
+        Product saleProduct;
 
     }
 
@@ -32,8 +33,8 @@ contract CourseCommerceManager{
     {
         owner = msg.sender;
         totalSales = 0;
-        currentProductID = 1000000;
-        currentSaleId = 1000000;
+        currentProductID = 0;
+        currentSaleId = 0;
     }
 
     modifier onlyOwner {
@@ -55,16 +56,36 @@ contract CourseCommerceManager{
     }
 
 
-    function buyProduct() public{
-        currentSaleId ++;
-        totalSales ++;
+    function buyProduct(uint256 _productId) public payable{ 
+        // Verifica se il prodotto esiste
+        require(_productId > 0 && _productId <= currentProductID, "Product does not exist." );
+
+        // Recupera il prodotto
+        Product memory product = products[_productId - 1];
+
+        // Verifica se l'utente ha abbastanza Ether per acquistare il prodotto
+        require(msg.value >= product.productPrice, "Not enough Ether to purchase the product");
+
+        // Calcola il resto 
+        uint256 change = msg.value - product.productPrice;
+
+        // Crea un record di vendita e aggiungilo all'array sales
         Sale memory newSale = Sale({
-            saleId: currentSaleId,
+            saleId: ++currentSaleId,
+            buyerAddress: msg.sender,
             saleDate: block.timestamp,
-            buyerAddress: msg.sender
-        });
-        
+            saleProduct: product,
+            sellerAddress: payable(product.productAddress)            
+        });        
         sales.push(newSale);
+
+        // Trasferisci l'Ether al venditore
+        newSale.sellerAddress.transfer(product.productPrice);
+
+        // Restituisci il resto all' utente
+        if (change > 0){
+            payable(msg.sender).transfer(change);
+        }
 
     }
 
