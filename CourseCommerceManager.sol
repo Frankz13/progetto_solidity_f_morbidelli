@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import "./SalesLib.sol";
+import "./Types.sol";
+
 // Contratto per la gestione di un negozio di prodotti online
 contract CourseCommerceManager{
 
@@ -9,25 +12,12 @@ contract CourseCommerceManager{
     uint256 public currentProductID;
     uint256 public currentSaleId;
 
-    // Struttura per rappresentare un prodotto
-    struct Product{
-        uint256 productId;
-        address productAddress;
-        string productName;
-        uint256 productPrice;
-    }
+    using Types for Types.Product;
+    using Types for Types.Sale;
 
-    // Struttura per rappresentare una vendita
-    struct Sale{
-        uint256 saleId;
-        address buyerAddress;
-        address payable sellerAddress;
-        uint256 saleDate;
-        uint256 saleProductId;
-    }
+    Types.Product[] public products;
+    Types.Sale[] public sales;
 
-    Product[] public products;
-    Sale[] public sales;
 
     // Creazione Eventi per tracciare nuovi prodotti e nuove vendite
     event NewSaleAdded (uint256 saleId, address buyerAddress, uint256 saleDate, uint256 saleProductId, uint256 totalSales);
@@ -51,7 +41,7 @@ contract CourseCommerceManager{
     // Funzione per aggiungere un prodotto
     function addProduct(string memory _productName, uint256 _productPrice) public onlyOwner{
         currentProductID ++;
-        Product memory newProduct = Product({
+        Types.Product memory newProduct = Types.Product({
             productId: currentProductID,
             productAddress: msg.sender,
             productName: _productName,
@@ -66,18 +56,20 @@ contract CourseCommerceManager{
     function buyProduct(uint256 _productId) public payable{
         require(_productId > 0 && _productId <= currentProductID, "Product does not exist.");
 
-        Product memory product = products[_productId - 1];
+        Types.Product memory product = products[_productId - 1];
 
         require(msg.value >= product.productPrice, "Not enough Ether to purchase the product");
 
         uint256 change = msg.value - product.productPrice;
+        
 
-        Sale memory newSale = Sale({
+        Types.Sale memory newSale = Types.Sale({
             saleId: ++currentSaleId,
             buyerAddress: msg.sender,
             saleDate: block.timestamp,
             saleProductId: _productId,
-            sellerAddress: payable(product.productAddress)
+            sellerAddress: payable(product.productAddress),
+            salePrice: product.productPrice
         });
 
         sales.push(newSale);
@@ -98,16 +90,26 @@ contract CourseCommerceManager{
     // Funzione per ottenere i dettagli di un prodotto
     function getProductDetails(uint _productId) public view returns (uint256, address, string memory, uint256){
         require(_productId > 0 && _productId <= currentProductID, "Product does not exist.");
-        Product memory product = products[_productId - 1];
+        Types.Product memory product = products[_productId - 1];
         return (product.productId, product.productAddress, product.productName, product.productPrice);
     }
 
     // Funzione per ottenere i dettagli di una vendita
     function getSaleDetails(uint256 _saleId) public view returns (uint256, address, uint256, address, uint256, string memory, uint256){
         require(_saleId > 1000000 && _saleId <= currentSaleId, "Sale order does not exist.");
-        Sale memory sale = sales[_saleId - 1000001];
-        Product memory product = products[sale.saleProductId - 1];
+        Types.Sale memory sale = sales[_saleId - 1000001];
+        Types.Product memory product = products[sale.saleProductId - 1];
         return (sale.saleId, sale.buyerAddress, sale.saleDate, sale.sellerAddress, product.productId, product.productName, product.productPrice);
     }
-}
 
+    // Funzione per ottenere gli acquisti di un cliente
+    function getUserSales(address customer) public view returns (Types.Product[] memory) {
+        return SalesLib.getUserSales(customer, sales, products);
+    }
+
+    function getSalesAmountInPeriod(uint256 _from, uint256 _to) public view returns (uint256) {
+        return SalesLib.getSalesAmountInPeriod(sales, _from, _to);
+    }
+
+    
+}
